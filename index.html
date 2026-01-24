@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Haarvisie AI Chatbot + Training</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .chat-container {
+            width: 100%;
+            max-width: 900px;
+            height: 90vh;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .chat-header {
+            background: linear-gradient(135deg, #2c3e50 0%, #4a5568 100%);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .logo {
+            width: 45px;
+            height: 45px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
+        .header-info h1 { font-size: 1.3rem; margin-bottom: 2px; }
+        .header-info p { font-size: 0.8rem; opacity: 0.8; }
+        .header-buttons { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+        .header-btn {
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .header-btn:hover { background: rgba(255,255,255,0.3); }
+        .training-count {
+            background: #48bb78;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+        }
+        .api-status {
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .api-status.connected { background: #48bb78; }
+        .api-status.disconnected { background: #f56565; }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f7fafc;
+        }
+        .message {
+            max-width: 85%;
+            margin-bottom: 15px;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message.user { margin-left: auto; }
+        .message.bot { margin-right: auto; }
+        .message-content {
+            padding: 15px 20px;
+            border-radius: 18px;
+            line-height: 1.5;
+        }
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .message.bot .message-content {
+            background: white;
+            color: #2d3748;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .message-images {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .message-images img {
+            max-width: 120px;
+            max-height: 120px;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        /* Feedback knoppen */
+        .feedback-bar {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .feedback-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+        }
+        .feedback-btn.good {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        .feedback-btn.good:hover { background: #9ae6b4; }
+        .feedback-btn.correct {
+            background: #fed7d7;
+            color: #822727;
+        }
+        .feedback-btn.correct:hover { background: #feb2b2; }
+        .feedback-btn.train {
+            background: #e9d8fd;
+            color: #553c9a;
+        }
+        .feedback-btn.train:hover { background: #d6bcfa; }
+        .feedback-btn.done {
+            background: #bee3f8;
+            color: #2a4365;
+        }
+        /* Correctie panel */
+        .correction-panel {
+            display: none;
+            margin-top: 10px;
+            padding: 15px;
+            background: #fffaf0;
+            border: 2px solid #ed8936;
+            border-radius: 12px;
+        }
+        .correction-panel.active { display: block; }
+        .correction-panel h4 {
+            color: #c05621;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+        .correction-panel textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            resize: vertical;
+        }
+        .correction-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .correction-actions button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .save-correction {
+            background: #48bb78;
+            color: white;
+        }
+        .cancel-correction {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+        /* Chat input */
+        .chat-input-area {
+            padding: 15px 20px;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+        }
+        .photo-preview {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .photo-preview-item {
+            position: relative;
+            width: 70px;
+            height: 70px;
+        }
+        .photo-preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        .photo-preview-item .remove-btn {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            width: 20px;
+            height: 20px;
+            background: #f56565;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .photo-preview-item .photo-label {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            font-size: 9px;
+            padding: 2px;
+            text-align: center;
+            border-radius: 0 0 8px 8px;
+        }
+        .input-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+        .input-wrapper textarea {
+            width: 100%;
+            padding: 12px 45px 12px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 20px;
+            font-size: 0.95rem;
+            resize: none;
+            min-height: 45px;
+            max-height: 120px;
+        }
+        .input-wrapper textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .attach-btn {
+            position: absolute;
+            right: 12px;
+            bottom: 10px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            opacity: 0.6;
+        }
+        .attach-btn:hover { opacity: 1; }
+        .send-btn {
+            width: 45px;
+            height: 45px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.1rem;
+        }
+        .typing-indicator {
+            display: flex;
+            gap: 5px;
+            padding: 15px 20px;
+            background: white;
+            border-radius: 18px;
+            width: fit-content;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background: #a0aec0;
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
+        .quick-actions {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .quick-action-btn {
+            padding: 6px 12px;
+            background: #edf2f7;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .quick-action-btn:hover { background: #e2e8f0; }
+        /* Settings & Training panels */
+        .panel {
+            display: none;
+            padding: 15px 20px;
+            background: #f7fafc;
+            border-bottom: 1px solid #e2e8f0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .panel.active { display: block; }
+        .panel h3 {
+            font-size: 1rem;
+            margin-bottom: 12px;
+            color: #2d3748;
+        }
+        .settings-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .settings-row label {
+            font-size: 0.85rem;
+            color: #4a5568;
+            min-width: 80px;
+        }
+        .settings-row input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+        }
+        .settings-btn {
+            padding: 6px 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        /* Training data list */
+        .training-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .training-item {
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border-left: 3px solid #667eea;
+        }
+        .training-item .meta {
+            font-size: 0.75rem;
+            color: #718096;
+            margin-bottom: 5px;
+        }
+        .training-item .original {
+            font-size: 0.8rem;
+            color: #e53e3e;
+            text-decoration: line-through;
+            margin-bottom: 3px;
+        }
+        .training-item .corrected {
+            font-size: 0.85rem;
+            color: #38a169;
+        }
+        .training-item .delete-btn {
+            float: right;
+            background: #fed7d7;
+            border: none;
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.7rem;
+        }
+        .export-btn {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background: #48bb78;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .price-tag {
+            display: inline-block;
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+        #fileInput { display: none; }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="logo">💇</div>
+            <div class="header-info">
+                <h1>Haarvisie AI Assistent</h1>
+                <p>Met training & feedback</p>
+            </div>
+            <div class="header-buttons">
+                <span class="training-count" id="trainingCount">0 correcties</span>
+                <button class="header-btn" onclick="togglePanel('training')">📚 Training</button>
+                <button class="header-btn" onclick="togglePanel('settings')">⚙️</button>
+                <div class="api-status disconnected" id="apiStatus">Niet verbonden</div>
+            </div>
+        </div>
+
+        <div class="panel" id="settingsPanel">
+            <h3>⚙️ Instellingen</h3>
+            <div class="settings-row">
+                <label>API Key:</label>
+                <input type="password" id="apiKeyInput" placeholder="Voer je Gemini API key in">
+                <button class="settings-btn" onclick="saveApiKey()">Opslaan</button>
+            </div>
+        </div>
+
+        <div class="panel" id="trainingPanel">
+            <h3>📚 Training Data & Correcties</h3>
+            <p style="font-size:0.8rem;color:#718096;margin-bottom:10px;">
+                Hier zie je alle correcties die je hebt gemaakt. Deze worden gebruikt om de AI te verbeteren.
+            </p>
+            <div class="training-list" id="trainingList"></div>
+            <button class="export-btn" onclick="exportTrainingData()">📥 Exporteer Training Data</button>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot">
+                <div class="message-content">
+                    <strong>Welkom bij Haarvisie! 👋</strong><br><br>
+                    Ik ben de AI-assistent met <strong>trainingsmodus</strong>!<br><br>
+                    Na elk advies kun je:<br>
+                    • ✅ <strong>Goed</strong> - Advies is correct<br>
+                    • ✏️ <strong>Corrigeren</strong> - Pas het advies aan<br>
+                    • 🎓 <strong>Train</strong> - Voeg toe aan training data<br><br>
+                    <em>Upload foto's voor het beste advies!</em>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-input-area">
+            <div class="quick-actions">
+                <button class="quick-action-btn" onclick="quickAction('highlights')">💡 Highlights</button>
+                <button class="quick-action-btn" onclick="quickAction('grijs')">🔘 Grijs dekken</button>
+                <button class="quick-action-btn" onclick="quickAction('balayage')">🎨 Balayage</button>
+                <button class="quick-action-btn" onclick="quickAction('prijzen')">💰 Prijzen</button>
+            </div>
+            <div class="photo-preview" id="photoPreview"></div>
+            <div class="input-row">
+                <div class="input-wrapper">
+                    <textarea id="messageInput" placeholder="Stel je vraag..." rows="1" onkeydown="handleKeyDown(event)"></textarea>
+                    <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📎</button>
+                </div>
+                <button class="send-btn" onclick="sendMessage()">➤</button>
+            </div>
+            <input type="file" id="fileInput" multiple accept="image/*" onchange="handleFileSelect(event)">
+        </div>
+    </div>
+
+<script>
+let API_KEY = localStorage.getItem('gemini_api_key') || '';
+const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+let trainingData = null;
+let uploadedPhotos = [];
+let conversationHistory = [];
+let messageCounter = 0;
+
+// Training correcties opslaan
+let corrections = JSON.parse(localStorage.getItem('haarvisie_corrections') || '[]');
+
+const SYSTEM_PROMPT = `Je bent de AI-assistent van Kapsalon Haarvisie, een professionele haarsalon gespecialiseerd in kleurbehandelingen.
+
+BELANGRIJKE RICHTLIJNEN:
+1. Geef altijd vriendelijk, professioneel advies in de stijl van Haarvisie
+2. Bij kleuradvies vraag je om foto's van het huidige haar en de gewenste kleur
+3. Stel intake-vragen: kleuring afgelopen jaar, zelf gekleurd, ontkleurd, donkerder, Olaplex, Andrelon masker, henna, extensions, haargeschiedenis, kwaliteit
+4. Adviseer ALTIJD Olaplex bij kleurprocessen
+
+PRIJZEN (+ €25 private booth toeslag):
+- Full head highlights + Olaplex: vanaf €325 (5 uur)
+- Balayage + Olaplex: vanaf €295 (4 uur)
+- Uitgroei bijwerken: vanaf €95 (2 uur)
+- Knippen: inbegrepen bij kleurbehandeling
+
+AANBETALING: €100 voor nieuwe klanten
+Spreek klant aan met "je", wees warm en persoonlijk.`;
+
+document.addEventListener('DOMContentLoaded', () => {
+    checkApiKey();
+    loadTrainingData();
+    updateTrainingCount();
+    renderTrainingList();
+});
+
+function checkApiKey() {
+    const status = document.getElementById('apiStatus');
+    status.textContent = API_KEY ? 'Verbonden' : 'Niet verbonden';
+    status.className = 'api-status ' + (API_KEY ? 'connected' : 'disconnected');
+}
+
+function togglePanel(panel) {
+    const settingsPanel = document.getElementById('settingsPanel');
+    const trainingPanel = document.getElementById('trainingPanel');
+
+    if (panel === 'settings') {
+        settingsPanel.classList.toggle('active');
+        trainingPanel.classList.remove('active');
+        if (settingsPanel.classList.contains('active')) {
+            document.getElementById('apiKeyInput').value = API_KEY;
+        }
+    } else {
+        trainingPanel.classList.toggle('active');
+        settingsPanel.classList.remove('active');
+        renderTrainingList();
+    }
+}
+
+function saveApiKey() {
+    API_KEY = document.getElementById('apiKeyInput').value.trim();
+    localStorage.setItem('gemini_api_key', API_KEY);
+    checkApiKey();
+    togglePanel('settings');
+    addBotMessage('✅ API key opgeslagen!');
+}
+
+async function loadTrainingData() {
+    try {
+        const response = await fetch('training_organized/all_intakes_renamed.json');
+        trainingData = await response.json();
+    } catch (e) { console.log('Training data niet beschikbaar'); }
+}
+
+function handleFileSelect(event) {
+    for (let file of event.target.files) {
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                uploadedPhotos.push({
+                    data: e.target.result,
+                    type: uploadedPhotos.length === 0 ? 'Eigen haar' : 'Wens foto'
+                });
+                updatePhotoPreview();
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+    event.target.value = '';
+}
+
+function updatePhotoPreview() {
+    document.getElementById('photoPreview').innerHTML = uploadedPhotos.map((p, i) => `
+        <div class="photo-preview-item">
+            <img src="${p.data}">
+            <button class="remove-btn" onclick="uploadedPhotos.splice(${i},1);updatePhotoPreview()">×</button>
+            <div class="photo-label">${p.type}</div>
+        </div>
+    `).join('');
+}
+
+function handleKeyDown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+}
+
+function quickAction(type) {
+    const msgs = {
+        highlights: 'Ik wil graag highlights. Kunnen jullie mij adviseren?',
+        grijs: 'Ik heb grijze haren die ik wil laten dekken.',
+        balayage: 'Ik ben geïnteresseerd in balayage.',
+        prijzen: 'Wat zijn jullie prijzen voor kleurbehandelingen?'
+    };
+    document.getElementById('messageInput').value = msgs[type];
+    sendMessage();
+}
+
+async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const message = input.value.trim();
+    if (!message && !uploadedPhotos.length) return;
+
+    addUserMessage(message, uploadedPhotos.map(p => p.data));
+
+    // Sla op in history
+    conversationHistory.push({
+        role: 'user',
+        message: message,
+        photos: uploadedPhotos.map(p => p.type)
+    });
+
+    input.value = '';
+    const photos = [...uploadedPhotos];
+    uploadedPhotos = [];
+    updatePhotoPreview();
+    showTypingIndicator();
+
+    try {
+        const response = await callGeminiAPI(message, photos);
+        hideTypingIndicator();
+        addBotMessageWithFeedback(response, message, photos);
+
+        conversationHistory.push({
+            role: 'bot',
+            message: response
+        });
+    } catch (error) {
+        hideTypingIndicator();
+        addBotMessage('⚠️ ' + error.message);
+    }
+}
+
+async function callGeminiAPI(userMessage, photos) {
+    if (!API_KEY) throw new Error('Geen API key. Ga naar instellingen.');
+
+    const parts = [{ text: SYSTEM_PROMPT }];
+
+    // Voeg correcties toe als extra training context
+    if (corrections.length > 0) {
+        const recentCorrections = corrections.slice(-5);
+        parts.push({
+            text: '\n\nBELANGRIJK - Leer van deze eerdere correcties:\n' +
+                  recentCorrections.map(c =>
+                      `Vraag: "${c.userQuestion}"\nFout antwoord: "${c.originalResponse.substring(0,150)}..."\nCorrect antwoord: "${c.correctedResponse}"`
+                  ).join('\n\n---\n\n')
+        });
+    }
+
+    if (trainingData) {
+        const examples = trainingData.filter(i => i.advies_clean).slice(0, 2);
+        if (examples.length) {
+            parts.push({ text: '\n\nVoorbeelden van goede adviezen:\n' + examples.map(e => `${e.klant_naam}: ${e.advies_clean.substring(0,300)}...`).join('\n\n') });
+        }
+    }
+
+    parts.push({ text: '\n\nKlant vraag: ' + userMessage });
+
+    for (const photo of photos) {
+        parts.push({ inlineData: { mimeType: 'image/jpeg', data: photo.data.split(',')[1] }});
+        parts.push({ text: `[${photo.type}]` });
+    }
+
+    if (photos.length) parts.push({ text: '\nAnalyseer de foto(s) en geef haaradvies.' });
+
+    const response = await fetch(`${API_URL}?key=${API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts }], generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }})
+    });
+
+    if (!response.ok) throw new Error('API fout');
+    const data = await response.json();
+    return data.candidates[0].content.parts[0].text;
+}
+
+function addUserMessage(text, images = []) {
+    let html = `<div class="message user"><div class="message-content">${escapeHtml(text)}</div>`;
+    if (images.length) html += `<div class="message-images">${images.map(i => `<img src="${i}" onclick="showFullImage(this.src)">`).join('')}</div>`;
+    html += '</div>';
+    document.getElementById('chatMessages').innerHTML += html;
+    scrollToBottom();
+}
+
+function addBotMessage(text) {
+    const formatted = formatMessage(text);
+    document.getElementById('chatMessages').innerHTML += `<div class="message bot"><div class="message-content">${formatted}</div></div>`;
+    scrollToBottom();
+}
+
+function addBotMessageWithFeedback(text, userQuestion, photos) {
+    messageCounter++;
+    const msgId = 'msg-' + messageCounter;
+    const formatted = formatMessage(text);
+
+    const html = `
+        <div class="message bot" id="${msgId}">
+            <div class="message-content">${formatted}</div>
+            <div class="feedback-bar">
+                <button class="feedback-btn good" onclick="markAsGood('${msgId}')">✅ Goed</button>
+                <button class="feedback-btn correct" onclick="showCorrection('${msgId}')">✏️ Corrigeren</button>
+                <button class="feedback-btn train" onclick="addToTraining('${msgId}')">🎓 Train hiermee</button>
+            </div>
+            <div class="correction-panel" id="correction-${msgId}">
+                <h4>✏️ Wat zou het juiste advies zijn?</h4>
+                <textarea id="corrected-${msgId}" placeholder="Typ hier het correcte advies...">${text}</textarea>
+                <div class="correction-actions">
+                    <button class="save-correction" onclick="saveCorrection('${msgId}', '${escapeAttr(userQuestion)}', '${escapeAttr(text)}')">💾 Opslaan als correctie</button>
+                    <button class="cancel-correction" onclick="hideCorrection('${msgId}')">Annuleren</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('chatMessages').innerHTML += html;
+    scrollToBottom();
+}
+
+function formatMessage(text) {
+    return escapeHtml(text)
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/€(\d+)/g, '<span class="price-tag">€$1</span>')
+        .replace(/\n/g, '<br>');
+}
+
+function markAsGood(msgId) {
+    const msg = document.getElementById(msgId);
+    const feedbackBar = msg.querySelector('.feedback-bar');
+    feedbackBar.innerHTML = '<button class="feedback-btn done">✅ Gemarkeerd als goed advies</button>';
+}
+
+function showCorrection(msgId) {
+    document.getElementById('correction-' + msgId).classList.add('active');
+}
+
+function hideCorrection(msgId) {
+    document.getElementById('correction-' + msgId).classList.remove('active');
+}
+
+function saveCorrection(msgId, userQuestion, originalResponse) {
+    const correctedText = document.getElementById('corrected-' + msgId).value;
+
+    const correction = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        userQuestion: decodeURIComponent(userQuestion.replace(/\\'/g, "'")),
+        originalResponse: decodeURIComponent(originalResponse.replace(/\\'/g, "'")),
+        correctedResponse: correctedText
+    };
+
+    corrections.push(correction);
+    localStorage.setItem('haarvisie_corrections', JSON.stringify(corrections));
+
+    // Update UI
+    hideCorrection(msgId);
+    const msg = document.getElementById(msgId);
+    const feedbackBar = msg.querySelector('.feedback-bar');
+    feedbackBar.innerHTML = '<button class="feedback-btn done">✅ Correctie opgeslagen!</button>';
+
+    updateTrainingCount();
+
+    // Toon bevestiging
+    addBotMessage('📚 Correctie opgeslagen! Ik zal hier van leren bij volgende adviezen.');
+}
+
+function addToTraining(msgId) {
+    const msg = document.getElementById(msgId);
+    const content = msg.querySelector('.message-content').innerText;
+
+    const trainingItem = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        type: 'good_example',
+        response: content
+    };
+
+    corrections.push(trainingItem);
+    localStorage.setItem('haarvisie_corrections', JSON.stringify(corrections));
+
+    const feedbackBar = msg.querySelector('.feedback-bar');
+    feedbackBar.innerHTML = '<button class="feedback-btn done">🎓 Toegevoegd aan training!</button>';
+
+    updateTrainingCount();
+}
+
+function updateTrainingCount() {
+    document.getElementById('trainingCount').textContent = corrections.length + ' correcties';
+}
+
+function renderTrainingList() {
+    const list = document.getElementById('trainingList');
+    if (corrections.length === 0) {
+        list.innerHTML = '<p style="color:#718096;font-size:0.85rem;">Nog geen correcties. Geef feedback op adviezen om de AI te trainen!</p>';
+        return;
+    }
+
+    list.innerHTML = corrections.slice().reverse().map(c => `
+        <div class="training-item">
+            <button class="delete-btn" onclick="deleteCorrection(${c.id})">🗑️ Verwijder</button>
+            <div class="meta">${new Date(c.timestamp).toLocaleString('nl-NL')}</div>
+            ${c.type === 'good_example'
+                ? `<div class="corrected">✅ ${c.response.substring(0, 100)}...</div>`
+                : `<div class="original">❌ ${c.originalResponse?.substring(0, 80) || ''}...</div>
+                   <div class="corrected">✅ ${c.correctedResponse?.substring(0, 100) || ''}...</div>`
+            }
+        </div>
+    `).join('');
+}
+
+function deleteCorrection(id) {
+    corrections = corrections.filter(c => c.id !== id);
+    localStorage.setItem('haarvisie_corrections', JSON.stringify(corrections));
+    updateTrainingCount();
+    renderTrainingList();
+}
+
+function exportTrainingData() {
+    const data = {
+        exported: new Date().toISOString(),
+        corrections: corrections
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'haarvisie_training_' + new Date().toISOString().split('T')[0] + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function showTypingIndicator() {
+    document.getElementById('chatMessages').innerHTML += `<div class="message bot" id="typingIndicator"><div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
+    scrollToBottom();
+}
+
+function hideTypingIndicator() {
+    document.getElementById('typingIndicator')?.remove();
+}
+
+function scrollToBottom() {
+    const m = document.getElementById('chatMessages');
+    m.scrollTop = m.scrollHeight;
+}
+
+function escapeHtml(t) {
+    const d = document.createElement('div');
+    d.textContent = t;
+    return d.innerHTML;
+}
+
+function escapeAttr(t) {
+    return encodeURIComponent(t).replace(/'/g, "\\'");
+}
+
+function showFullImage(src) {
+    const m = document.createElement('div');
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;z-index:1000;cursor:pointer';
+    m.innerHTML = `<img src="${src}" style="max-width:90%;max-height:90%;border-radius:10px">`;
+    m.onclick = () => m.remove();
+    document.body.appendChild(m);
+}
+</script>
+</body>
+</html>
