@@ -36,7 +36,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 .intake-btn.multi.selected{background:#48bb78;border-color:#48bb78}
 .intake-checkbox{width:18px;height:18px;border:2px solid #cbd5e0;border-radius:4px;display:flex;align-items:center;justify-content:center}
 .intake-btn.selected .intake-checkbox{background:white;border-color:white}
-.intake-btn.selected .intake-checkbox::after{content:'â';color:#48bb78;font-weight:bold}
+.intake-btn.selected .intake-checkbox::after{content:'✓';color:#48bb78;font-weight:bold}
 .intake-next{margin-top:12px;padding:12px 24px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;border:none;border-radius:25px;cursor:pointer;font-size:0.95rem;font-weight:600}
 .intake-next:disabled{opacity:0.5;cursor:not-allowed}
 .intake-next:not(:disabled):hover{transform:scale(1.02)}
@@ -59,8 +59,8 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 .send-btn{width:45px;height:45px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;border:none;border-radius:50%;cursor:pointer;font-size:1.1rem}
 .panel{display:none;padding:15px 20px;background:#f7fafc;border-bottom:1px solid #e2e8f0}
 .panel.active{display:block}
-.settings-row{display:flex;align-items:center;gap:10px}
-.settings-row input{flex:1;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px}
+.settings-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.settings-row input{flex:1;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;min-width:200px}
 .settings-btn{padding:6px 12px;background:#667eea;color:white;border:none;border-radius:5px;cursor:pointer}
 .typing-indicator{display:flex;gap:5px;padding:15px 20px;background:white;border-radius:18px;width:fit-content;box-shadow:0 2px 10px rgba(0,0,0,0.1)}
 .typing-indicator span{width:8px;height:8px;background:#a0aec0;border-radius:50%;animation:typing 1.4s infinite}
@@ -78,156 +78,519 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 <body>
 <div class="chat-container">
 <div class="chat-header">
-<div class="logo">ð</div>
+<div class="logo">💇</div>
 <div class="header-info"><h1>Haarvisie AI Assistent</h1><p>Met intake vragenlijst</p></div>
 <div class="header-buttons">
-<button class="header-btn" onclick="startIntake()">ð Nieuwe Intake</button>
-<button class="header-btn" onclick="togglePanel()">âï¸</button>
+<button class="header-btn" id="intakeBtn">📋 Nieuwe Intake</button>
+<button class="header-btn" id="settingsBtn">⚙️</button>
 <div class="api-status disconnected" id="apiStatus">Niet verbonden</div>
 </div>
 </div>
-<div class="panel" id="settingsPanel"><div class="settings-row"><label>API Key:</label><input type="password" id="apiKeyInput" placeholder="Voer je Gemini API key in"><button class="settings-btn" onclick="saveApiKey()">Opslaan</button></div></div>
-<div class="chat-messages" id="chatMessages"><div class="message bot"><div class="message-content"><strong>Welkom bij Haarvisie! ð</strong><br><br>Klik op <strong>ð Nieuwe Intake</strong> om te beginnen met de intake vragenlijst, of stel direct een vraag.</div></div></div>
-<div class="chat-input-area"><div class="input-row"><div class="input-wrapper"><textarea id="messageInput" placeholder="Of stel hier direct je vraag..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea><button class="attach-btn" onclick="document.getElementById('fileInput').click()">ð</button></div><button class="send-btn" onclick="sendMessage()">â¤</button></div><input type="file" id="fileInput" multiple accept="image/*" onchange="handleFileSelect(event)"></div>
+<div class="panel" id="settingsPanel">
+<div class="settings-row">
+<label>API Key:</label>
+<input type="password" id="apiKeyInput" placeholder="Voer je Gemini API key in">
+<button class="settings-btn" id="saveKeyBtn">Opslaan</button>
 </div>
+</div>
+<div class="chat-messages" id="chatMessages">
+<div class="message bot">
+<div class="message-content">
+<strong>Welkom bij Haarvisie! 👋</strong><br><br>
+Klik op <strong>📋 Nieuwe Intake</strong> om te beginnen met de intake vragenlijst, of stel direct een vraag.
+</div>
+</div>
+</div>
+<div class="chat-input-area">
+<div class="input-row">
+<div class="input-wrapper">
+<textarea id="messageInput" placeholder="Of stel hier direct je vraag..." rows="1"></textarea>
+<button class="attach-btn" id="attachBtn">📎</button>
+</div>
+<button class="send-btn" id="sendBtn">➤</button>
+</div>
+<input type="file" id="fileInput" multiple accept="image/*">
+</div>
+</div>
+</body>
+</html>
 <script>
-let API_KEY=localStorage.getItem('gemini_api_key')||'';
-const API_URL='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-let uploadedPhotos=[];
-let intakeData={};
-let currentQuestion=0;
-let currentPhotoType='current';
-let messageCounter=0;
+let API_KEY = localStorage.getItem('gemini_api_key') || '';
+const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+let uploadedPhotos = [];
+let intakeData = {};
+let currentQuestion = 0;
+let currentPhotoType = 'current';
+let messageCounter = 0;
 
-const INTAKE_QUESTIONS=[
-{id:'service',question:'Welke service wil je?',type:'single',options:[
-{value:'knippen',label:'âï¸ Knippen'},{value:'kleuren',label:'ð¨ Kleuren'},{value:'highlights',label:'ð¡ Highlights/Balayage'},{value:'behandeling',label:'ð Behandeling'},{value:'styling',label:'ð Styling/FÃ¶hnen'},{value:'combinatie',label:'ð Combinatie'}]},
-{id:'current_color',question:'Wat is je huidige haarkleur?',type:'single',options:[
-{value:'blond',label:'ð± Blond'},{value:'bruin',label:'ð¤ Bruin'},{value:'zwart',label:'â¬ Zwart'},{value:'rood',label:'ð´ Rood'},{value:'grijs',label:'â¬ Grijs/wit'},{value:'gekleurd',label:'ð Fantasie kleur'}]},
-{id:'colored_before',question:'Is je haar eerder gekleurd?',type:'single',options:[
-{value:'nee',label:'â Nee, natuurlijk haar'},{value:'ja_salon',label:'â Ja, bij een salon'},{value:'ja_zelf',label:'ð  Ja, zelf thuis gekleurd'},{value:'ja_beide',label:'ð Beide'}]},
-{id:'color_history',question:'Wat is er de afgelopen 2 jaar met je haar gedaan?',type:'multi',options:[
-{value:'highlights',label:'ð¡ Highlights/lowlights'},{value:'ontkleurd',label:'â¡ Ontkleurd/gebleekt'},{value:'donkerder',label:'ð Donkerder geverfd'},{value:'henna',label:'ð¿ Henna'},{value:'permanent',label:'ð Permanent'},{value:'niets',label:'â¨ Niets'}]},
-{id:'hair_condition',question:'Hoe is je haarkwaliteit?',type:'single',options:[
-{value:'gezond',label:'ðª Gezond en sterk'},{value:'normaal',label:'ð Normaal'},{value:'droog',label:'ðï¸ Droog/pluizig'},{value:'beschadigd',label:'â ï¸ Beschadigd'},{value:'dun',label:'ðª¶ Fijn/dun'}]},
-{id:'products',question:'Welke producten gebruik je thuis?',type:'multi',options:[
-{value:'olaplex',label:'ð Olaplex'},{value:'kerastase',label:'ð§´ KÃ©rastase'},{value:'andrelon',label:'ð Supermarkt'},{value:'masker',label:'ð­ Haarmaskers'},{value:'hittetools',label:'ð¥ Stijltang/fÃ¶hn'},{value:'geen',label:'â Geen speciale'}]},
-{id:'photo_current',question:'ð¸ Upload een foto van je HUIDIGE haar',type:'photo',photoType:'current',description:'Maak een foto in daglicht'},
-{id:'photo_wish',question:'ð¯ Upload een WENSFOTO (inspiratie)',type:'photo',photoType:'wish',description:'Upload je droomkapsel/kleur'},
-{id:'wish',question:'Beschrijf kort je wens (optioneel)',type:'text',placeholder:'Bijv: Ik wil lichter worden met een natuurlijke uitstraling...'}
+const INTAKE_QUESTIONS = [
+    {id:'service', question:'Welke service wil je?', type:'single', options:[
+        {value:'knippen', label:'✂️ Knippen'},
+        {value:'kleuren', label:'🎨 Kleuren'},
+        {value:'highlights', label:'🌟 Highlights/Balayage'},
+        {value:'behandeling', label:'💆 Behandeling'},
+        {value:'styling', label:'💅 Styling/Föhnen'},
+        {value:'combinatie', label:'📦 Combinatie'}
+    ]},
+    {id:'current_color', question:'Wat is je huidige haarkleur?', type:'single', options:[
+        {value:'blond', label:'👱 Blond'},
+        {value:'bruin', label:'🤎 Bruin'},
+        {value:'zwart', label:'⬛ Zwart'},
+        {value:'rood', label:'🔴 Rood'},
+        {value:'grijs', label:'⬜ Grijs/wit'},
+        {value:'gekleurd', label:'🌈 Fantasie kleur'}
+    ]},
+    {id:'colored_before', question:'Is je haar eerder gekleurd?', type:'single', options:[
+        {value:'nee', label:'❌ Nee, natuurlijk haar'},
+        {value:'ja_salon', label:'✅ Ja, bij een salon'},
+        {value:'ja_zelf', label:'🏠 Ja, zelf thuis gekleurd'},
+        {value:'ja_beide', label:'🔄 Beide'}
+    ]},
+    {id:'color_history', question:'Wat is er de afgelopen 2 jaar met je haar gedaan?', type:'multi', options:[
+        {value:'highlights', label:'🌟 Highlights/lowlights'},
+        {value:'ontkleurd', label:'⚡ Ontkleurd/gebleekt'},
+        {value:'donkerder', label:'🌑 Donkerder geverfd'},
+        {value:'henna', label:'🌿 Henna'},
+        {value:'permanent', label:'🔄 Permanent'},
+        {value:'niets', label:'✨ Niets'}
+    ]},
+    {id:'hair_condition', question:'Hoe is je haarkwaliteit?', type:'single', options:[
+        {value:'gezond', label:'💪 Gezond en sterk'},
+        {value:'normaal', label:'👍 Normaal'},
+        {value:'droog', label:'🏜️ Droog/pluizig'},
+        {value:'beschadigd', label:'⚠️ Beschadigd'},
+        {value:'dun', label:'🪶 Fijn/dun'}
+    ]},
+    {id:'products', question:'Welke producten gebruik je thuis?', type:'multi', options:[
+        {value:'olaplex', label:'💎 Olaplex'},
+        {value:'kerastase', label:'🧴 Kérastase'},
+        {value:'andrelon', label:'🛒 Supermarkt'},
+        {value:'masker', label:'🎭 Haarmaskers'},
+        {value:'hittetools', label:'🔥 Stijltang/föhn'},
+        {value:'geen', label:'❌ Geen speciale'}
+    ]},
+    {id:'photo_current', question:'📸 Upload een foto van je HUIDIGE haar', type:'photo', photoType:'current', description:'Maak een foto in daglicht'},
+    {id:'photo_wish', question:'🎯 Upload een WENSFOTO (inspiratie)', type:'photo', photoType:'wish', description:'Upload je droomkapsel/kleur'},
+    {id:'wish', question:'Beschrijf kort je wens (optioneel)', type:'text', placeholder:'Bijv: Ik wil lichter worden met een natuurlijke uitstraling...'}
 ];
 
-document.addEventListener('DOMContentLoaded',()=>{checkApiKey()});
-
-function checkApiKey(){const s=document.getElementById('apiStatus');s.textContent=API_KEY?'Verbonden':'Niet verbonden';s.className='api-status '+(API_KEY?'connected':'disconnected')}
-
-function togglePanel(){document.getElementById('settingsPanel').classList.toggle('active')}
-
-function saveApiKey(){API_KEY=document.getElementById('apiKeyInput').value.trim();localStorage.setItem('gemini_api_key',API_KEY);checkApiKey();togglePanel();addBotMessage('â API key opgeslagen!')}
-
-function startIntake(){intakeData={};currentQuestion=0;uploadedPhotos=[];addBotMessage('ð <strong>Intake Vragenlijst</strong><br>Beantwoord de volgende vragen zodat ik je het beste kan adviseren.');setTimeout(()=>showIntakeQuestion(currentQuestion),500)}
-
-function showIntakeQuestion(qIndex){
-if(qIndex>=INTAKE_QUESTIONS.length){finishIntake();return}
-const q=INTAKE_QUESTIONS[qIndex];
-const progress=INTAKE_QUESTIONS.map((x,i)=>'<span class="progress-dot '+(i<qIndex?'done':i===qIndex?'active':'')+'"></span>').join('');
-let content='<div class="intake-question"><div class="intake-progress">'+progress+'</div><h4>'+q.question+'</h4>';
-if(q.description)content+='<p style="font-size:0.85rem;color:#718096;margin-bottom:10px">'+q.description+'</p>';
-
-if(q.type==='single'){
-content+='<div class="intake-options">'+q.options.map(o=>'<button class="intake-btn" onclick="selectOption(\''+q.id+'\',\''+o.value+'\',this)">'+o.label+'</button>').join('')+'</div>';
-}else if(q.type==='multi'){
-content+='<div class="intake-options">'+q.options.map(o=>'<button class="intake-btn multi" onclick="toggleMulti(\''+q.id+'\',\''+o.value+'\',this)"><span class="intake-checkbox"></span>'+o.label+'</button>').join('')+'</div><button class="intake-next" id="nextBtn" onclick="nextQuestion()" disabled>Volgende â</button>';
-}else if(q.type==='photo'){
-currentPhotoType=q.photoType||'current';
-content+='<div class="photo-upload-area" id="photoArea" onclick="document.getElementById(\'photoInput\').click()"><input type="file" id="photoInput" accept="image/*" multiple onchange="handleIntakePhoto(event)" style="display:none">ð· Klik om foto te uploaden<div class="uploaded-preview" id="photoPreview"></div></div><button class="intake-next" onclick="nextQuestion()">'+((q.photoType==='wish')?'Overslaan / Volgende â':'Volgende â')+'</button>';
-}else if(q.type==='text'){
-content+='<textarea id="txt-'+q.id+'" placeholder="'+(q.placeholder||'')+'" style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:12px;min-height:80px;font-size:0.95rem;margin-top:10px"></textarea><button class="intake-next" onclick="saveText(\''+q.id+'\')">Volgende â</button>';
-}
-content+='</div>';
-addBotHtml(content);
-}
-
-function selectOption(qid,val,btn){intakeData[qid]=val;btn.parentElement.querySelectorAll('.intake-btn').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');setTimeout(()=>{currentQuestion++;showIntakeQuestion(currentQuestion)},400)}
-
-function toggleMulti(qid,val,btn){
-if(!intakeData[qid])intakeData[qid]=[];
-const idx=intakeData[qid].indexOf(val);
-if(idx>-1){intakeData[qid].splice(idx,1);btn.classList.remove('selected')}
-else{intakeData[qid].push(val);btn.classList.add('selected')}
-document.getElementById('nextBtn').disabled=intakeData[qid].length===0;
-}
-
-function handleIntakePhoto(e){
-Array.from(e.target.files).forEach(f=>{
-if(f.type.startsWith('image/')){
-const r=new FileReader();
-r.onload=ev=>{uploadedPhotos.push({data:ev.target.result,type:currentPhotoType});updatePhotoPreview()};
-r.readAsDataURL(f);
-}
+document.addEventListener('DOMContentLoaded', function() {
+    checkApiKey();
+    document.getElementById('intakeBtn').addEventListener('click', startIntake);
+    document.getElementById('settingsBtn').addEventListener('click', togglePanel);
+    document.getElementById('saveKeyBtn').addEventListener('click', saveApiKey);
+    document.getElementById('sendBtn').addEventListener('click', sendMessage);
+    document.getElementById('attachBtn').addEventListener('click', function() {
+        document.getElementById('fileInput').click();
+    });
+    document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+    document.getElementById('messageInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
 });
+
+function checkApiKey() {
+    var s = document.getElementById('apiStatus');
+    if (API_KEY) {
+        s.textContent = 'Verbonden';
+        s.className = 'api-status connected';
+    } else {
+        s.textContent = 'Niet verbonden';
+        s.className = 'api-status disconnected';
+    }
 }
 
-function updatePhotoPreview(){
-const photos=uploadedPhotos.filter(p=>p.type===currentPhotoType);
-const area=document.getElementById('photoArea');
-const preview=document.getElementById('photoPreview');
-if(photos.length){area.classList.add('has-photo');preview.innerHTML='â '+photos.length+' foto geÃ¼pload<br>'+photos.map(p=>'<img src="'+p.data+'">').join('')}
+function togglePanel() {
+    document.getElementById('settingsPanel').classList.toggle('active');
 }
 
-function saveText(qid){intakeData[qid]=document.getElementById('txt-'+qid).value;nextQuestion()}
-
-function nextQuestion(){currentQuestion++;showIntakeQuestion(currentQuestion)}
-
-function finishIntake(){addBotMessage('â <strong>Intake compleet!</strong><br><br>Even geduld, ik analyseer je gegevens...');showTyping();generateAdvice()}
-
-async function generateAdvice(){
-if(!API_KEY){hideTyping();addBotMessage('â ï¸ Voer eerst je API key in via âï¸');return}
-try{const r=await callGemini();hideTyping();addBotMsgFb(r)}catch(e){hideTyping();addBotMessage('â ï¸ '+e.message)}
+function saveApiKey() {
+    API_KEY = document.getElementById('apiKeyInput').value.trim();
+    localStorage.setItem('gemini_api_key', API_KEY);
+    checkApiKey();
+    togglePanel();
+    addBotMessage('✅ API key opgeslagen!');
 }
 
-async function callGemini(){
-const prompt='Je bent Haarvisie AI. INTAKE: Behandeling:'+intakeData.service+', Kleur:'+intakeData.current_color+', Gekleurd:'+intakeData.colored_before+', Conditie:'+intakeData.hair_condition+', Wens:'+intakeData.wish+'. PRIJZEN: Highlights â¬325, Balayage â¬185, Kleuren â¬95, Kleuring â¬175. Analyseer de foto van het huidige haar en vergelijk met de wensfoto (indien aanwezig). Geef advies, prijs en waarschuw bij risicos.';
-const parts=[{text:prompt}];
-uploadedPhotos.filter(p=>p.type==='current').forEach(p=>parts.push({inlineData:{mimeType:'image/jpeg',data:p.data.split(',')[1]}}));
-uploadedPhotos.filter(p=>p.type==='wish').forEach(p=>parts.push({inlineData:{mimeType:'image/jpeg',data:p.data.split(',')[1]}}));
-const res=await fetch(API_URL+'?key='+API_KEY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts}],generationConfig:{temperature:0.7,maxOutputTokens:1024}})});
-if(!res.ok)throw new Error('API fout');
-const d=await res.json();return d.candidates[0].content.parts[0].text;
+function startIntake() {
+    intakeData = {};
+    currentQuestion = 0;
+    uploadedPhotos = [];
+    addBotMessage('📋 <strong>Intake Vragenlijst</strong><br>Beantwoord de volgende vragen zodat ik je het beste kan adviseren.');
+    setTimeout(function() {
+        showIntakeQuestion(currentQuestion);
+    }, 500);
 }
 
-function addUserMsg(t){document.getElementById('chatMessages').innerHTML+='<div class="message user"><div class="message-content">'+escHtml(t)+'</div></div>';scrollToBottom()}
-function addBotMessage(t){document.getElementById('chatMessages').innerHTML+='<div class="message bot"><div class="message-content">'+t+'</div></div>';scrollToBottom()}
-function addBotHtml(h){document.getElementById('chatMessages').innerHTML+='<div class="message bot"><div class="message-content">'+h+'</div></div>';scrollToBottom()}
-function addBotMsgFb(t){messageCounter++;const id='m'+messageCounter;document.getElementById('chatMessages').innerHTML+='<div class="message bot" id="'+id+'"><div class="message-content">'+fmtMsg(t)+'<div class="feedback-bar"><button class="feedback-btn good" onclick="giveFeedback(\''+id+'\',\'good\')">ð Goed</button><button class="feedback-btn correct" onclick="giveFeedback(\''+id+'\',\'correct\')">âï¸ Corrigeer</button></div></div></div>';scrollToBottom()}
-function fmtMsg(t){return escHtml(t).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/â¬(\d+)/g,'<span class="price-tag">â¬$1</span>').replace(/\n/g,'<br>')}
-function showTyping(){document.getElementById('chatMessages').innerHTML+='<div id="typing" class="message bot"><div class="typing-indicator"><span></span><span></span><span></span></div></div>';scrollToBottom()}
-function hideTyping(){document.getElementById('typing')?.remove()}
-function scrollToBottom(){const m=document.getElementById('chatMessages');m.scrollTop=m.scrollHeight}
-function escHtml(t){const d=document.createElement('div');d.textContent=t;return d.innerHTML}
-function handleFileSelect(e){Array.from(e.target.files).forEach(f=>{if(f.type.startsWith('image/')){const r=new FileReader();r.onload=ev=>{uploadedPhotos.push({data:ev.target.result,type:'chat'})};r.readAsDataURL(f)}})}
-
-async function sendMessage(){
-const input=document.getElementById('messageInput');
-const msg=input.value.trim();
-if(!msg&&uploadedPhotos.filter(p=>p.type==='chat').length===0)return;
-if(msg)addUserMsg(msg);
-input.value='';
-if(!API_KEY){addBotMessage('â ï¸ Voer eerst je API key in via âï¸');return}
-showTyping();
-try{
-const parts=[{text:'Je bent Haarvisie AI haarstylist. Vraag: '+msg}];
-uploadedPhotos.filter(p=>p.type==='chat').forEach(p=>parts.push({inlineData:{mimeType:'image/jpeg',data:p.data.split(',')[1]}}));
-const res=await fetch(API_URL+'?key='+API_KEY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts}],generationConfig:{temperature:0.7,maxOutputTokens:1024}})});
-if(!res.ok)throw new Error('API fout');
-const d=await res.json();
-hideTyping();
-addBotMsgFb(d.candidates[0].content.parts[0].text);
-uploadedPhotos=uploadedPhotos.filter(p=>p.type!=='chat');
-}catch(e){hideTyping();addBotMessage('â ï¸ '+e.message)}
+function showIntakeQuestion(qIndex) {
+    if (qIndex >= INTAKE_QUESTIONS.length) {
+        finishIntake();
+        return;
+    }
+    var q = INTAKE_QUESTIONS[qIndex];
+    var progressHtml = '';
+    for (var i = 0; i < INTAKE_QUESTIONS.length; i++) {
+        var dotClass = 'progress-dot';
+        if (i < qIndex) dotClass += ' done';
+        else if (i === qIndex) dotClass += ' active';
+        progressHtml += '<span class="' + dotClass + '"></span>';
+    }
+    var content = '<div class="intake-question">';
+    content += '<div class="intake-progress">' + progressHtml + '</div>';
+    content += '<h4>' + q.question + '</h4>';
+    if (q.description) {
+        content += '<p style="font-size:0.85rem;color:#718096;margin-bottom:10px">' + q.description + '</p>';
+    }
+    if (q.type === 'single') {
+        content += '<div class="intake-options" id="intakeOptions">';
+        for (var j = 0; j < q.options.length; j++) {
+            var opt = q.options[j];
+            content += '<button class="intake-btn" data-qid="' + q.id + '" data-value="' + opt.value + '">' + opt.label + '</button>';
+        }
+        content += '</div>';
+    } else if (q.type === 'multi') {
+        content += '<div class="intake-options" id="intakeOptions">';
+        for (var k = 0; k < q.options.length; k++) {
+            var mopt = q.options[k];
+            content += '<button class="intake-btn multi" data-qid="' + q.id + '" data-value="' + mopt.value + '"><span class="intake-checkbox"></span>' + mopt.label + '</button>';
+        }
+        content += '</div>';
+        content += '<button class="intake-next" id="nextBtn" disabled>Volgende →</button>';
+    } else if (q.type === 'photo') {
+        currentPhotoType = q.photoType || 'current';
+        content += '<div class="photo-upload-area" id="photoArea">';
+        content += '<input type="file" id="photoInput" accept="image/*" multiple style="display:none">';
+        content += '📷 Klik om foto te uploaden';
+        content += '<div class="uploaded-preview" id="photoPreview"></div>';
+        content += '</div>';
+        var btnText = (q.photoType === 'wish') ? 'Overslaan / Volgende →' : 'Volgende →';
+        content += '<button class="intake-next" id="photoNextBtn">' + btnText + '</button>';
+    } else if (q.type === 'text') {
+        content += '<textarea id="textInput" placeholder="' + (q.placeholder || '') + '" style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:12px;min-height:80px;font-size:0.95rem;margin-top:10px"></textarea>';
+        content += '<button class="intake-next" id="textNextBtn">Volgende →</button>';
+    }
+    content += '</div>';
+    addBotHtml(content);
+    setTimeout(function() {
+        attachIntakeListeners(q);
+    }, 100);
 }
 
-function giveFeedback(id,type){alert('Feedback: '+type+' voor bericht '+id)}
+function attachIntakeListeners(q) {
+    if (q.type === 'single') {
+        var btns = document.querySelectorAll('#intakeOptions .intake-btn');
+        btns.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var qid = this.getAttribute('data-qid');
+                var val = this.getAttribute('data-value');
+                selectOption(qid, val, this);
+            });
+        });
+    } else if (q.type === 'multi') {
+        var mbtns = document.querySelectorAll('#intakeOptions .intake-btn');
+        mbtns.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var qid = this.getAttribute('data-qid');
+                var val = this.getAttribute('data-value');
+                toggleMulti(qid, val, this);
+            });
+        });
+        var nextBtn = document.getElementById('nextBtn');
+        if (nextBtn) {
+            nextBtn.addEventListener('click', nextQuestion);
+        }
+    } else if (q.type === 'photo') {
+        var photoArea = document.getElementById('photoArea');
+        var photoInput = document.getElementById('photoInput');
+        if (photoArea && photoInput) {
+            photoArea.addEventListener('click', function() {
+                photoInput.click();
+            });
+            photoInput.addEventListener('change', handleIntakePhoto);
+        }
+        var photoNextBtn = document.getElementById('photoNextBtn');
+        if (photoNextBtn) {
+            photoNextBtn.addEventListener('click', nextQuestion);
+        }
+    } else if (q.type === 'text') {
+        var textNextBtn = document.getElementById('textNextBtn');
+        if (textNextBtn) {
+            textNextBtn.addEventListener('click', function() {
+                var textInput = document.getElementById('textInput');
+                if (textInput) {
+                    intakeData[q.id] = textInput.value;
+                }
+                nextQuestion();
+            });
+        }
+    }
+}
+
+function selectOption(qid, val, btn) {
+    intakeData[qid] = val;
+    var allBtns = btn.parentElement.querySelectorAll('.intake-btn');
+    allBtns.forEach(function(b) {
+        b.classList.remove('selected');
+    });
+    btn.classList.add('selected');
+    setTimeout(function() {
+        currentQuestion++;
+        showIntakeQuestion(currentQuestion);
+    }, 400);
+}
+
+function toggleMulti(qid, val, btn) {
+    if (!intakeData[qid]) {
+        intakeData[qid] = [];
+    }
+    var idx = intakeData[qid].indexOf(val);
+    if (idx > -1) {
+        intakeData[qid].splice(idx, 1);
+        btn.classList.remove('selected');
+    } else {
+        intakeData[qid].push(val);
+        btn.classList.add('selected');
+    }
+    var nextBtn = document.getElementById('nextBtn');
+    if (nextBtn) {
+        nextBtn.disabled = intakeData[qid].length === 0;
+    }
+}
+
+function handleIntakePhoto(e) {
+    var files = e.target.files;
+    for (var i = 0; i < files.length; i++) {
+        var f = files[i];
+        if (f.type.startsWith('image/')) {
+            var reader = new FileReader();
+            reader.onload = function(ev) {
+                uploadedPhotos.push({data: ev.target.result, type: currentPhotoType});
+                updatePhotoPreview();
+            };
+            reader.readAsDataURL(f);
+        }
+    }
+}
+
+function updatePhotoPreview() {
+    var photos = uploadedPhotos.filter(function(p) {
+        return p.type === currentPhotoType;
+    });
+    var area = document.getElementById('photoArea');
+    var preview = document.getElementById('photoPreview');
+    if (photos.length && area && preview) {
+        area.classList.add('has-photo');
+        var html = '✅ ' + photos.length + ' foto geüpload<br>';
+        for (var i = 0; i < photos.length; i++) {
+            html += '<img src="' + photos[i].data + '">';
+        }
+        preview.innerHTML = html;
+    }
+}
+
+function nextQuestion() {
+    currentQuestion++;
+    showIntakeQuestion(currentQuestion);
+}
+
+function finishIntake() {
+    addBotMessage('✅ <strong>Intake compleet!</strong><br><br>Even geduld, ik analyseer je gegevens...');
+    showTyping();
+    generateAdvice();
+}
+
+async function generateAdvice() {
+    if (!API_KEY) {
+        hideTyping();
+        addBotMessage('⚠️ Voer eerst je API key in via ⚙️');
+        return;
+    }
+    try {
+        var response = await callGemini();
+        hideTyping();
+        addBotMsgFb(response);
+    } catch(e) {
+        hideTyping();
+        addBotMessage('⚠️ ' + e.message);
+    }
+}
+
+async function callGemini() {
+    var prompt = 'Je bent Haarvisie AI, een professionele haaradviseur. INTAKE GEGEVENS: ';
+    prompt += 'Gewenste behandeling: ' + (intakeData.service || 'niet opgegeven') + ', ';
+    prompt += 'Huidige kleur: ' + (intakeData.current_color || 'niet opgegeven') + ', ';
+    prompt += 'Eerder gekleurd: ' + (intakeData.colored_before || 'niet opgegeven') + ', ';
+    prompt += 'Kleurhistorie: ' + (intakeData.color_history ? intakeData.color_history.join(', ') : 'niet opgegeven') + ', ';
+    prompt += 'Haarkwaliteit: ' + (intakeData.hair_condition || 'niet opgegeven') + ', ';
+    prompt += 'Producten: ' + (intakeData.products ? intakeData.products.join(', ') : 'niet opgegeven') + ', ';
+    prompt += 'Wens: ' + (intakeData.wish || 'niet opgegeven') + '. ';
+    prompt += 'PRIJZEN: Highlights vanaf €325, Balayage vanaf €185, Kleuren vanaf €95, Full colour €175. ';
+    prompt += 'Analyseer de foto van het huidige haar en vergelijk met de wensfoto (indien aanwezig). ';
+    prompt += 'Geef een persoonlijk advies, geschatte prijs en waarschuw bij risicos. Wees vriendelijk en professioneel.';
+
+    var parts = [{text: prompt}];
+    var currentPhotos = uploadedPhotos.filter(function(p) { return p.type === 'current'; });
+    for (var i = 0; i < currentPhotos.length; i++) {
+        var imgData = currentPhotos[i].data.split(',')[1];
+        parts.push({inlineData: {mimeType: 'image/jpeg', data: imgData}});
+    }
+    var wishPhotos = uploadedPhotos.filter(function(p) { return p.type === 'wish'; });
+    for (var j = 0; j < wishPhotos.length; j++) {
+        var wishData = wishPhotos[j].data.split(',')[1];
+        parts.push({inlineData: {mimeType: 'image/jpeg', data: wishData}});
+    }
+
+    var response = await fetch(API_URL + '?key=' + API_KEY, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            contents: [{parts: parts}],
+            generationConfig: {temperature: 0.7, maxOutputTokens: 1024}
+        })
+    });
+    if (!response.ok) {
+        throw new Error('API fout: ' + response.status);
+    }
+    var data = await response.json();
+    return data.candidates[0].content.parts[0].text;
+}
+
+function addUserMsg(text) {
+    var html = '<div class="message user"><div class="message-content">' + escHtml(text) + '</div></div>';
+    document.getElementById('chatMessages').innerHTML += html;
+    scrollToBottom();
+}
+
+function addBotMessage(text) {
+    var html = '<div class="message bot"><div class="message-content">' + text + '</div></div>';
+    document.getElementById('chatMessages').innerHTML += html;
+    scrollToBottom();
+}
+
+function addBotHtml(html) {
+    var wrapper = '<div class="message bot"><div class="message-content">' + html + '</div></div>';
+    document.getElementById('chatMessages').innerHTML += wrapper;
+    scrollToBottom();
+}
+
+function addBotMsgFb(text) {
+    messageCounter++;
+    var id = 'msg_' + messageCounter;
+    var html = '<div class="message bot" id="' + id + '"><div class="message-content">' + formatMessage(text);
+    html += '<div class="feedback-bar">';
+    html += '<button class="feedback-btn good" data-msgid="' + id + '" data-type="good">👍 Goed</button>';
+    html += '<button class="feedback-btn correct" data-msgid="' + id + '" data-type="correct">✏️ Corrigeer</button>';
+    html += '</div></div></div>';
+    document.getElementById('chatMessages').innerHTML += html;
+    scrollToBottom();
+    setTimeout(function() {
+        var feedbackBtns = document.querySelectorAll('#' + id + ' .feedback-btn');
+        feedbackBtns.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var msgId = this.getAttribute('data-msgid');
+                var type = this.getAttribute('data-type');
+                giveFeedback(msgId, type);
+            });
+        });
+    }, 100);
+}
+
+function formatMessage(text) {
+    var formatted = escHtml(text);
+    formatted = formatted.replace(/**(.+?)**/g, '<strong>$1</strong>');
+    formatted = formatted.replace(/€(d+)/g, '<span class="price-tag">€$1</span>');
+    formatted = formatted.replace(/
+/g, '<br>');
+    return formatted;
+}
+
+function showTyping() {
+    var html = '<div id="typing" class="message bot"><div class="typing-indicator"><span></span><span></span><span></span></div></div>';
+    document.getElementById('chatMessages').innerHTML += html;
+    scrollToBottom();
+}
+
+function hideTyping() {
+    var typing = document.getElementById('typing');
+    if (typing) {
+        typing.remove();
+    }
+}
+
+function scrollToBottom() {
+    var msgs = document.getElementById('chatMessages');
+    msgs.scrollTop = msgs.scrollHeight;
+}
+
+function escHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function handleFileSelect(e) {
+    var files = e.target.files;
+    for (var i = 0; i < files.length; i++) {
+        var f = files[i];
+        if (f.type.startsWith('image/')) {
+            var reader = new FileReader();
+            reader.onload = function(ev) {
+                uploadedPhotos.push({data: ev.target.result, type: 'chat'});
+            };
+            reader.readAsDataURL(f);
+        }
+    }
+}
+
+async function sendMessage() {
+    var input = document.getElementById('messageInput');
+    var msg = input.value.trim();
+    var chatPhotos = uploadedPhotos.filter(function(p) { return p.type === 'chat'; });
+    if (!msg && chatPhotos.length === 0) {
+        return;
+    }
+    if (msg) {
+        addUserMsg(msg);
+    }
+    input.value = '';
+    if (!API_KEY) {
+        addBotMessage('⚠️ Voer eerst je API key in via ⚙️');
+        return;
+    }
+    showTyping();
+    try {
+        var parts = [{text: 'Je bent Haarvisie AI, een vriendelijke haaradviseur. Vraag: ' + msg}];
+        for (var i = 0; i < chatPhotos.length; i++) {
+            var imgData = chatPhotos[i].data.split(',')[1];
+            parts.push({inlineData: {mimeType: 'image/jpeg', data: imgData}});
+        }
+        var response = await fetch(API_URL + '?key=' + API_KEY, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                contents: [{parts: parts}],
+                generationConfig: {temperature: 0.7, maxOutputTokens: 1024}
+            })
+        });
+        if (!response.ok) {
+            throw new Error('API fout: ' + response.status);
+        }
+        var data = await response.json();
+        hideTyping();
+        addBotMsgFb(data.candidates[0].content.parts[0].text);
+        uploadedPhotos = uploadedPhotos.filter(function(p) { return p.type !== 'chat'; });
+    } catch(e) {
+        hideTyping();
+        addBotMessage('⚠️ ' + e.message);
+    }
+}
+
+function giveFeedback(msgId, type) {
+    alert('Bedankt voor je feedback! Type: ' + type);
+}
 </script>
 </body>
 </html>
