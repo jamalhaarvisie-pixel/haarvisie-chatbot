@@ -36,7 +36,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 .intake-btn.multi.selected{background:#48bb78;border-color:#48bb78}
 .intake-checkbox{width:18px;height:18px;border:2px solid #cbd5e0;border-radius:4px;display:flex;align-items:center;justify-content:center}
 .intake-btn.selected .intake-checkbox{background:white;border-color:white}
-.intake-btn.selected .intake-checkbox::after{content:'OK';color:#48bb78;font-weight:bold;font-size:10px}
+.intake-btn.selected .intake-checkbox::after{content:'✓';color:#48bb78;font-weight:bold}
 .intake-next{margin-top:12px;padding:12px 24px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;border:none;border-radius:25px;cursor:pointer;font-size:0.95rem;font-weight:600}
 .intake-next:disabled{opacity:0.5;cursor:not-allowed}
 .intake-next:not(:disabled):hover{transform:scale(1.02)}
@@ -113,10 +113,8 @@ Klik op <strong>Nieuwe Intake</strong> om te beginnen met de intake vragenlijst,
 <input type="file" id="fileInput" multiple accept="image/*">
 </div>
 </div>
-</body>
-</html>
+
 <script>
-const DEFAULT_API_KEY = 'AIzaSyDrU_93rH8FU06btTpFKUaFeDVRBAs7rqs';
 let API_KEY = localStorage.getItem('gemini_api_key') || '';
 const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 let uploadedPhotos = [];
@@ -210,12 +208,11 @@ function togglePanel() {
 }
 
 function saveApiKey() {
-    var inputKey = document.getElementById('apiKeyInput').value.trim();
-    API_KEY = inputKey || DEFAULT_API_KEY;
+    API_KEY = document.getElementById('apiKeyInput').value.trim();
     localStorage.setItem('gemini_api_key', API_KEY);
     checkApiKey();
     togglePanel();
-    addBotMessage('API key geactiveerd! Je kunt nu de chatbot gebruiken.');
+    addBotMessage('API key geactiveerd!');
 }
 
 function startIntake() {
@@ -223,16 +220,11 @@ function startIntake() {
     currentQuestion = 0;
     uploadedPhotos = [];
     addBotMessage('<strong>Intake Vragenlijst</strong><br>Beantwoord de volgende vragen zodat ik je het beste kan adviseren.');
-    setTimeout(function() {
-        showIntakeQuestion(currentQuestion);
-    }, 500);
+    setTimeout(function() { showIntakeQuestion(currentQuestion); }, 500);
 }
 
 function showIntakeQuestion(qIndex) {
-    if (qIndex >= INTAKE_QUESTIONS.length) {
-        finishIntake();
-        return;
-    }
+    if (qIndex >= INTAKE_QUESTIONS.length) { finishIntake(); return; }
     var q = INTAKE_QUESTIONS[qIndex];
     var progressHtml = '';
     for (var i = 0; i < INTAKE_QUESTIONS.length; i++) {
@@ -241,12 +233,8 @@ function showIntakeQuestion(qIndex) {
         else if (i === qIndex) dotClass += ' active';
         progressHtml += '<span class="' + dotClass + '"></span>';
     }
-    var content = '<div class="intake-question">';
-    content += '<div class="intake-progress">' + progressHtml + '</div>';
-    content += '<h4>' + q.question + '</h4>';
-    if (q.description) {
-        content += '<p style="font-size:0.85rem;color:#718096;margin-bottom:10px">' + q.description + '</p>';
-    }
+    var content = '<div class="intake-question"><div class="intake-progress">' + progressHtml + '</div><h4>' + q.question + '</h4>';
+    if (q.description) { content += '<p style="font-size:0.85rem;color:#718096;margin-bottom:10px">' + q.description + '</p>'; }
     if (q.type === 'single') {
         content += '<div class="intake-options" id="intakeOptions">';
         for (var j = 0; j < q.options.length; j++) {
@@ -260,15 +248,10 @@ function showIntakeQuestion(qIndex) {
             var mopt = q.options[k];
             content += '<button class="intake-btn multi" data-qid="' + q.id + '" data-value="' + mopt.value + '"><span class="intake-checkbox"></span>' + mopt.label + '</button>';
         }
-        content += '</div>';
-        content += '<button class="intake-next" id="nextBtn" disabled>Volgende</button>';
+        content += '</div><button class="intake-next" id="nextBtn" disabled>Volgende</button>';
     } else if (q.type === 'photo') {
         currentPhotoType = q.photoType || 'current';
-        content += '<div class="photo-upload-area" id="photoArea">';
-        content += '<input type="file" id="photoInput" accept="image/*" multiple style="display:none">';
-        content += 'Klik om foto te uploaden';
-        content += '<div class="uploaded-preview" id="photoPreview"></div>';
-        content += '</div>';
+        content += '<div class="photo-upload-area" id="photoArea"><input type="file" id="photoInput" accept="image/*" multiple style="display:none">Klik om foto te uploaden<div class="uploaded-preview" id="photoPreview"></div></div>';
         var btnText = (q.photoType === 'wish') ? 'Overslaan / Volgende' : 'Volgende';
         content += '<button class="intake-next" id="photoNextBtn">' + btnText + '</button>';
     } else if (q.type === 'text') {
@@ -277,55 +260,35 @@ function showIntakeQuestion(qIndex) {
     }
     content += '</div>';
     addBotHtml(content);
-    setTimeout(function() {
-        attachIntakeListeners(q);
-    }, 100);
+    setTimeout(function() { attachIntakeListeners(q); }, 100);
 }
 
 function attachIntakeListeners(q) {
     if (q.type === 'single') {
-        var btns = document.querySelectorAll('#intakeOptions .intake-btn');
-        btns.forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var qid = this.getAttribute('data-qid');
-                var val = this.getAttribute('data-value');
-                selectOption(qid, val, this);
-            });
+        document.querySelectorAll('#intakeOptions .intake-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() { selectOption(this.getAttribute('data-qid'), this.getAttribute('data-value'), this); });
         });
     } else if (q.type === 'multi') {
-        var mbtns = document.querySelectorAll('#intakeOptions .intake-btn');
-        mbtns.forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var qid = this.getAttribute('data-qid');
-                var val = this.getAttribute('data-value');
-                toggleMulti(qid, val, this);
-            });
+        document.querySelectorAll('#intakeOptions .intake-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() { toggleMulti(this.getAttribute('data-qid'), this.getAttribute('data-value'), this); });
         });
         var nextBtn = document.getElementById('nextBtn');
-        if (nextBtn) {
-            nextBtn.addEventListener('click', nextQuestion);
-        }
+        if (nextBtn) { nextBtn.addEventListener('click', nextQuestion); }
     } else if (q.type === 'photo') {
         var photoArea = document.getElementById('photoArea');
         var photoInput = document.getElementById('photoInput');
         if (photoArea && photoInput) {
-            photoArea.addEventListener('click', function() {
-                photoInput.click();
-            });
+            photoArea.addEventListener('click', function() { photoInput.click(); });
             photoInput.addEventListener('change', handleIntakePhoto);
         }
         var photoNextBtn = document.getElementById('photoNextBtn');
-        if (photoNextBtn) {
-            photoNextBtn.addEventListener('click', nextQuestion);
-        }
+        if (photoNextBtn) { photoNextBtn.addEventListener('click', nextQuestion); }
     } else if (q.type === 'text') {
         var textNextBtn = document.getElementById('textNextBtn');
         if (textNextBtn) {
             textNextBtn.addEventListener('click', function() {
                 var textInput = document.getElementById('textInput');
-                if (textInput) {
-                    intakeData[q.id] = textInput.value;
-                }
+                if (textInput) { intakeData[q.id] = textInput.value; }
                 nextQuestion();
             });
         }
@@ -334,91 +297,50 @@ function attachIntakeListeners(q) {
 
 function selectOption(qid, val, btn) {
     intakeData[qid] = val;
-    var allBtns = btn.parentElement.querySelectorAll('.intake-btn');
-    allBtns.forEach(function(b) {
-        b.classList.remove('selected');
-    });
+    btn.parentElement.querySelectorAll('.intake-btn').forEach(function(b) { b.classList.remove('selected'); });
     btn.classList.add('selected');
-    setTimeout(function() {
-        currentQuestion++;
-        showIntakeQuestion(currentQuestion);
-    }, 400);
+    setTimeout(function() { currentQuestion++; showIntakeQuestion(currentQuestion); }, 400);
 }
 
 function toggleMulti(qid, val, btn) {
-    if (!intakeData[qid]) {
-        intakeData[qid] = [];
-    }
+    if (!intakeData[qid]) { intakeData[qid] = []; }
     var idx = intakeData[qid].indexOf(val);
-    if (idx > -1) {
-        intakeData[qid].splice(idx, 1);
-        btn.classList.remove('selected');
-    } else {
-        intakeData[qid].push(val);
-        btn.classList.add('selected');
-    }
+    if (idx > -1) { intakeData[qid].splice(idx, 1); btn.classList.remove('selected'); }
+    else { intakeData[qid].push(val); btn.classList.add('selected'); }
     var nextBtn = document.getElementById('nextBtn');
-    if (nextBtn) {
-        nextBtn.disabled = intakeData[qid].length === 0;
-    }
+    if (nextBtn) { nextBtn.disabled = intakeData[qid].length === 0; }
 }
 
 function handleIntakePhoto(e) {
-    var files = e.target.files;
-    for (var i = 0; i < files.length; i++) {
-        var f = files[i];
+    for (var i = 0; i < e.target.files.length; i++) {
+        var f = e.target.files[i];
         if (f.type.startsWith('image/')) {
             var reader = new FileReader();
-            reader.onload = function(ev) {
-                uploadedPhotos.push({data: ev.target.result, type: currentPhotoType});
-                updatePhotoPreview();
-            };
+            reader.onload = function(ev) { uploadedPhotos.push({data: ev.target.result, type: currentPhotoType}); updatePhotoPreview(); };
             reader.readAsDataURL(f);
         }
     }
 }
 
 function updatePhotoPreview() {
-    var photos = uploadedPhotos.filter(function(p) {
-        return p.type === currentPhotoType;
-    });
+    var photos = uploadedPhotos.filter(function(p) { return p.type === currentPhotoType; });
     var area = document.getElementById('photoArea');
     var preview = document.getElementById('photoPreview');
     if (photos.length && area && preview) {
         area.classList.add('has-photo');
         var html = photos.length + ' foto geupload<br>';
-        for (var i = 0; i < photos.length; i++) {
-            html += '<img src="' + photos[i].data + '">';
-        }
+        for (var i = 0; i < photos.length; i++) { html += '<img src="' + photos[i].data + '">'; }
         preview.innerHTML = html;
     }
 }
 
-function nextQuestion() {
-    currentQuestion++;
-    showIntakeQuestion(currentQuestion);
-}
-
-function finishIntake() {
-    addBotMessage('<strong>Intake compleet!</strong><br><br>Even geduld, ik analyseer je gegevens...');
-    showTyping();
-    generateAdvice();
-}
+function nextQuestion() { currentQuestion++; showIntakeQuestion(currentQuestion); }
+function finishIntake() { addBotMessage('<strong>Intake compleet!</strong><br><br>Even geduld, ik analyseer je gegevens...'); showTyping(); generateAdvice(); }
 
 async function generateAdvice() {
-    if (!API_KEY) {
-        hideTyping();
-        addBotMessage('Voer eerst je API key in via Settings');
-        return;
-    }
-    try {
-        var response = await callGemini();
-        hideTyping();
-        addBotMsgFb(response);
-    } catch(e) {
-        hideTyping();
-        addBotMessage('Fout: ' + e.message);
-    }
+    if (!API_KEY) { hideTyping(); addBotMessage('Voer eerst je API key in via Settings'); return; }
+    try { var response = await callGemini(); hideTyping(); addBotMsgFb(response); }
+    catch(e) { hideTyping(); addBotMessage('Fout: ' + e.message); }
 }
 
 async function callGemini() {
@@ -431,168 +353,73 @@ async function callGemini() {
     prompt += 'Producten: ' + (intakeData.products ? intakeData.products.join(', ') : 'niet opgegeven') + ', ';
     prompt += 'Wens: ' + (intakeData.wish || 'niet opgegeven') + '. ';
     prompt += 'PRIJZEN: Highlights vanaf 325 euro, Balayage vanaf 185 euro, Kleuren vanaf 95 euro, Full colour 175 euro. ';
-    prompt += 'Analyseer de foto van het huidige haar en vergelijk met de wensfoto (indien aanwezig). ';
     prompt += 'Geef een persoonlijk advies, geschatte prijs en waarschuw bij risicos. Wees vriendelijk en professioneel.';
-
     var parts = [{text: prompt}];
     var currentPhotos = uploadedPhotos.filter(function(p) { return p.type === 'current'; });
-    for (var i = 0; i < currentPhotos.length; i++) {
-        var imgData = currentPhotos[i].data.split(',')[1];
-        parts.push({inlineData: {mimeType: 'image/jpeg', data: imgData}});
-    }
+    for (var i = 0; i < currentPhotos.length; i++) { parts.push({inlineData: {mimeType: 'image/jpeg', data: currentPhotos[i].data.split(',')[1]}}); }
     var wishPhotos = uploadedPhotos.filter(function(p) { return p.type === 'wish'; });
-    for (var j = 0; j < wishPhotos.length; j++) {
-        var wishData = wishPhotos[j].data.split(',')[1];
-        parts.push({inlineData: {mimeType: 'image/jpeg', data: wishData}});
-    }
-
+    for (var j = 0; j < wishPhotos.length; j++) { parts.push({inlineData: {mimeType: 'image/jpeg', data: wishPhotos[j].data.split(',')[1]}}); }
     var response = await fetch(API_URL + '?key=' + API_KEY, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            contents: [{parts: parts}],
-            generationConfig: {temperature: 0.7, maxOutputTokens: 1024}
-        })
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ contents: [{parts: parts}], generationConfig: {temperature: 0.7, maxOutputTokens: 1024} })
     });
-    if (!response.ok) {
-        throw new Error('API fout: ' + response.status);
-    }
+    if (!response.ok) { throw new Error('API fout: ' + response.status); }
     var data = await response.json();
     return data.candidates[0].content.parts[0].text;
 }
 
-function addUserMsg(text) {
-    var html = '<div class="message user"><div class="message-content">' + escHtml(text) + '</div></div>';
-    document.getElementById('chatMessages').innerHTML += html;
-    scrollToBottom();
-}
-
-function addBotMessage(text) {
-    var html = '<div class="message bot"><div class="message-content">' + text + '</div></div>';
-    document.getElementById('chatMessages').innerHTML += html;
-    scrollToBottom();
-}
-
-function addBotHtml(html) {
-    var wrapper = '<div class="message bot"><div class="message-content">' + html + '</div></div>';
-    document.getElementById('chatMessages').innerHTML += wrapper;
-    scrollToBottom();
-}
+function addUserMsg(text) { document.getElementById('chatMessages').innerHTML += '<div class="message user"><div class="message-content">' + escHtml(text) + '</div></div>'; scrollToBottom(); }
+function addBotMessage(text) { document.getElementById('chatMessages').innerHTML += '<div class="message bot"><div class="message-content">' + text + '</div></div>'; scrollToBottom(); }
+function addBotHtml(html) { document.getElementById('chatMessages').innerHTML += '<div class="message bot"><div class="message-content">' + html + '</div></div>'; scrollToBottom(); }
 
 function addBotMsgFb(text) {
     messageCounter++;
     var id = 'msg_' + messageCounter;
     var html = '<div class="message bot" id="' + id + '"><div class="message-content">' + formatMessage(text);
-    html += '<div class="feedback-bar">';
-    html += '<button class="feedback-btn good" data-msgid="' + id + '" data-type="good">Goed</button>';
-    html += '<button class="feedback-btn correct" data-msgid="' + id + '" data-type="correct">Corrigeer</button>';
-    html += '</div></div></div>';
+    html += '<div class="feedback-bar"><button class="feedback-btn good" data-msgid="' + id + '" data-type="good">Goed</button>';
+    html += '<button class="feedback-btn correct" data-msgid="' + id + '" data-type="correct">Corrigeer</button></div></div></div>';
     document.getElementById('chatMessages').innerHTML += html;
     scrollToBottom();
     setTimeout(function() {
-        var feedbackBtns = document.querySelectorAll('#' + id + ' .feedback-btn');
-        feedbackBtns.forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var msgId = this.getAttribute('data-msgid');
-                var type = this.getAttribute('data-type');
-                giveFeedback(msgId, type);
-            });
+        document.querySelectorAll('#' + id + ' .feedback-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() { giveFeedback(this.getAttribute('data-msgid'), this.getAttribute('data-type')); });
         });
     }, 100);
 }
 
-function formatMessage(text) {
-    var formatted = escHtml(text);
-    formatted = formatted.replace(/**(.+?)**/g, '<strong>$1</strong>');
-    formatted = formatted.replace(/
-/g, '<br>');
-    return formatted;
-}
-
-function showTyping() {
-    var html = '<div id="typing" class="message bot"><div class="typing-indicator"><span></span><span></span><span></span></div></div>';
-    document.getElementById('chatMessages').innerHTML += html;
-    scrollToBottom();
-}
-
-function hideTyping() {
-    var typing = document.getElementById('typing');
-    if (typing) {
-        typing.remove();
-    }
-}
-
-function scrollToBottom() {
-    var msgs = document.getElementById('chatMessages');
-    msgs.scrollTop = msgs.scrollHeight;
-}
-
-function escHtml(text) {
-    var div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function handleFileSelect(e) {
-    var files = e.target.files;
-    for (var i = 0; i < files.length; i++) {
-        var f = files[i];
-        if (f.type.startsWith('image/')) {
-            var reader = new FileReader();
-            reader.onload = function(ev) {
-                uploadedPhotos.push({data: ev.target.result, type: 'chat'});
-            };
-            reader.readAsDataURL(f);
-        }
-    }
-}
+function formatMessage(text) { var f = escHtml(text); f = f.replace(/**(.+?)**/g, '<strong>$1</strong>'); f = f.replace(/
+/g, '<br>'); return f; }
+function showTyping() { document.getElementById('chatMessages').innerHTML += '<div id="typing" class="message bot"><div class="typing-indicator"><span></span><span></span><span></span></div></div>'; scrollToBottom(); }
+function hideTyping() { var t = document.getElementById('typing'); if (t) t.remove(); }
+function scrollToBottom() { var m = document.getElementById('chatMessages'); m.scrollTop = m.scrollHeight; }
+function escHtml(text) { var d = document.createElement('div'); d.textContent = text; return d.innerHTML; }
+function handleFileSelect(e) { for (var i = 0; i < e.target.files.length; i++) { var f = e.target.files[i]; if (f.type.startsWith('image/')) { var r = new FileReader(); r.onload = function(ev) { uploadedPhotos.push({data: ev.target.result, type: 'chat'}); }; r.readAsDataURL(f); } } }
 
 async function sendMessage() {
     var input = document.getElementById('messageInput');
     var msg = input.value.trim();
     var chatPhotos = uploadedPhotos.filter(function(p) { return p.type === 'chat'; });
-    if (!msg && chatPhotos.length === 0) {
-        return;
-    }
-    if (msg) {
-        addUserMsg(msg);
-    }
+    if (!msg && chatPhotos.length === 0) return;
+    if (msg) addUserMsg(msg);
     input.value = '';
-    if (!API_KEY) {
-        addBotMessage('Voer eerst je API key in via Settings');
-        return;
-    }
+    if (!API_KEY) { addBotMessage('Voer eerst je API key in via Settings'); return; }
     showTyping();
     try {
         var parts = [{text: 'Je bent Haarvisie AI, een vriendelijke haaradviseur. Vraag: ' + msg}];
-        for (var i = 0; i < chatPhotos.length; i++) {
-            var imgData = chatPhotos[i].data.split(',')[1];
-            parts.push({inlineData: {mimeType: 'image/jpeg', data: imgData}});
-        }
+        for (var i = 0; i < chatPhotos.length; i++) { parts.push({inlineData: {mimeType: 'image/jpeg', data: chatPhotos[i].data.split(',')[1]}}); }
         var response = await fetch(API_URL + '?key=' + API_KEY, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                contents: [{parts: parts}],
-                generationConfig: {temperature: 0.7, maxOutputTokens: 1024}
-            })
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ contents: [{parts: parts}], generationConfig: {temperature: 0.7, maxOutputTokens: 1024} })
         });
-        if (!response.ok) {
-            throw new Error('API fout: ' + response.status);
-        }
+        if (!response.ok) throw new Error('API fout: ' + response.status);
         var data = await response.json();
         hideTyping();
         addBotMsgFb(data.candidates[0].content.parts[0].text);
         uploadedPhotos = uploadedPhotos.filter(function(p) { return p.type !== 'chat'; });
-    } catch(e) {
-        hideTyping();
-        addBotMessage('Fout: ' + e.message);
-    }
+    } catch(e) { hideTyping(); addBotMessage('Fout: ' + e.message); }
 }
 
-function giveFeedback(msgId, type) {
-    alert('Bedankt voor je feedback! Type: ' + type);
-}
+function giveFeedback(msgId, type) { alert('Bedankt voor je feedback!'); }
 </script>
 </body>
 </html>
