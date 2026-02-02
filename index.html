@@ -89,16 +89,21 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 <div class="panel" id="settingsPanel">
 <div class="settings-row">
 <label>API Key:</label>
-<input type="password" id="apiKeyInput" value="AIzaSyDrU_93rH8FU06btTpFKUaFeDVRBAs7rqs" placeholder="Voer je Gemini API key in">
+<input type="password" id="apiKeyInput" value="" placeholder="Voer je Gemini API key in">
 <button class="settings-btn" id="saveKeyBtn">Activeren</button>
 </div>
 </div>
 <div class="chat-messages" id="chatMessages">
-<div class="message bot">
+<div class="message bot" id="welcomeMsg">
 <div class="message-content">
-<strong>Welkom bij Haarvisie!</strong><br><br>
-Klik op <strong>Nieuwe Intake</strong> om te beginnen met de intake vragenlijst, of stel direct een vraag.<br><br>
-<em>Tip: Klik op Settings en dan Activeren om de AI te verbinden.</em>
+<strong>Welkom bij Haarvisie AI!</strong><br><br>
+<span id="setupPrompt" style="display:none;background:#fff3cd;padding:10px;border-radius:8px;display:block;margin-bottom:10px;">
+⚠️ <strong>Eerst instellen:</strong> Klik op <strong>Settings</strong> en voer je Gemini API key in.<br>
+<small>Verkrijg je key op: <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a></small>
+</span>
+<span id="readyPrompt" style="display:none;">
+✅ AI is verbonden! Klik op <strong>Nieuwe Intake</strong> om te beginnen met de intake vragenlijst, of stel direct een vraag.
+</span>
 </div>
 </div>
 </div>
@@ -116,7 +121,7 @@ Klik op <strong>Nieuwe Intake</strong> om te beginnen met de intake vragenlijst,
 
 <script>
 let API_KEY = localStorage.getItem('gemini_api_key') || '';
-const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 let uploadedPhotos = [];
 let intakeData = {};
 let currentQuestion = 0;
@@ -199,12 +204,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function checkApiKey() {
     var s = document.getElementById('apiStatus');
+    var setupPrompt = document.getElementById('setupPrompt');
+    var readyPrompt = document.getElementById('readyPrompt');
+
     if (API_KEY) {
         s.textContent = 'Verbonden';
         s.className = 'api-status connected';
+        if (setupPrompt) setupPrompt.style.display = 'none';
+        if (readyPrompt) readyPrompt.style.display = 'block';
     } else {
         s.textContent = 'Niet verbonden';
         s.className = 'api-status disconnected';
+        if (setupPrompt) setupPrompt.style.display = 'block';
+        if (readyPrompt) readyPrompt.style.display = 'none';
+        // Open settings panel automatically if no API key
+        document.getElementById('settingsPanel').classList.add('active');
     }
 }
 
