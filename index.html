@@ -505,19 +505,19 @@ async function callGemini() {
 
 function addUserMsg(text) {
     var html = '<div class="message user"><div class="message-content">' + escHtml(text) + '</div></div>';
-    document.getElementById('chatMessages').innerHTML += html;
+    document.getElementById('chatMessages').insertAdjacentHTML('beforeend', html);
     scrollToBottom();
 }
 
 function addBotMessage(text) {
     var html = '<div class="message bot"><div class="message-content">' + text + '</div></div>';
-    document.getElementById('chatMessages').innerHTML += html;
+    document.getElementById('chatMessages').insertAdjacentHTML('beforeend', html);
     scrollToBottom();
 }
 
 function addBotHtml(html) {
     var wrapper = '<div class="message bot"><div class="message-content">' + html + '</div></div>';
-    document.getElementById('chatMessages').innerHTML += wrapper;
+    document.getElementById('chatMessages').insertAdjacentHTML('beforeend', wrapper);
     scrollToBottom();
 }
 
@@ -529,7 +529,7 @@ function addBotMsgFb(text) {
     html += '<button class="feedback-btn good" data-msgid="' + id + '" data-type="good">👍 Goed</button>';
     html += '<button class="feedback-btn correct" data-msgid="' + id + '" data-type="correct">✏️ Corrigeer</button>';
     html += '</div></div></div>';
-    document.getElementById('chatMessages').innerHTML += html;
+    document.getElementById('chatMessages').insertAdjacentHTML('beforeend', html);
     scrollToBottom();
 
     // Attach feedback listeners
@@ -555,7 +555,7 @@ function formatMessage(text) {
 
 function showTyping() {
     var html = '<div id="typing" class="message bot"><div class="typing-indicator"><span></span><span></span><span></span></div></div>';
-    document.getElementById('chatMessages').innerHTML += html;
+    document.getElementById('chatMessages').insertAdjacentHTML('beforeend', html);
     scrollToBottom();
 }
 
