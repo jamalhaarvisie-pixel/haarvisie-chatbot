@@ -200,6 +200,66 @@ document.addEventListener('DOMContentLoaded', function() {
             sendMessage();
         }
     });
+
+    // EVENT DELEGATION - catch all clicks on chatMessages
+    document.getElementById('chatMessages').addEventListener('click', function(e) {
+        var target = e.target;
+
+        // Handle intake button clicks (single select)
+        if (target.classList.contains('intake-btn') && !target.classList.contains('multi')) {
+            var qid = target.getAttribute('data-qid');
+            var val = target.getAttribute('data-value');
+            if (qid && val) {
+                console.log('Delegated single click:', qid, val);
+                selectOption(qid, val, target);
+            }
+            return;
+        }
+
+        // Handle multi-select button clicks
+        if (target.classList.contains('intake-btn') && target.classList.contains('multi')) {
+            var qid = target.getAttribute('data-qid');
+            var val = target.getAttribute('data-value');
+            if (qid && val) {
+                console.log('Delegated multi click:', qid, val);
+                toggleMulti(qid, val, target);
+            }
+            return;
+        }
+
+        // Handle checkbox span inside multi button
+        if (target.classList.contains('intake-checkbox')) {
+            var btn = target.closest('.intake-btn');
+            if (btn && btn.classList.contains('multi')) {
+                var qid = btn.getAttribute('data-qid');
+                var val = btn.getAttribute('data-value');
+                if (qid && val) {
+                    console.log('Delegated checkbox click:', qid, val);
+                    toggleMulti(qid, val, btn);
+                }
+            }
+            return;
+        }
+
+        // Handle "Volgende" button clicks
+        if (target.classList.contains('intake-next')) {
+            console.log('Delegated next button click, disabled:', target.disabled);
+            if (!target.disabled) {
+                nextQuestion();
+            }
+            return;
+        }
+
+        // Handle photo upload area clicks
+        if (target.classList.contains('photo-upload-area') || target.closest('.photo-upload-area')) {
+            var area = target.classList.contains('photo-upload-area') ? target : target.closest('.photo-upload-area');
+            var photoInput = area.querySelector('input[type="file"]');
+            if (photoInput && e.target.tagName !== 'INPUT') {
+                photoInput.click();
+            }
+            return;
+        }
+    });
 });
 
 function checkApiKey() {
@@ -309,55 +369,76 @@ function attachIntakeListeners(q) {
     // Get the LAST intake-question element (the one just added)
     var allQuestions = document.querySelectorAll('.intake-question');
     var currentQuestionEl = allQuestions[allQuestions.length - 1];
-    if (!currentQuestionEl) return;
+
+    console.log('attachIntakeListeners called for:', q.id, 'type:', q.type);
+    console.log('Found question elements:', allQuestions.length);
+    console.log('Current question element:', currentQuestionEl);
+
+    if (!currentQuestionEl) {
+        console.error('No question element found!');
+        return;
+    }
 
     if (q.type === 'single') {
         var btns = currentQuestionEl.querySelectorAll('.intake-btn');
+        console.log('Single: found buttons:', btns.length);
         btns.forEach(function(btn) {
-            btn.addEventListener('click', function() {
+            btn.onclick = function() {
                 var qid = this.getAttribute('data-qid');
                 var val = this.getAttribute('data-value');
+                console.log('Single click:', qid, val);
                 selectOption(qid, val, this);
-            });
+            };
         });
     } else if (q.type === 'multi') {
         var mbtns = currentQuestionEl.querySelectorAll('.intake-btn');
+        console.log('Multi: found buttons:', mbtns.length);
         mbtns.forEach(function(btn) {
-            btn.addEventListener('click', function() {
+            btn.onclick = function() {
                 var qid = this.getAttribute('data-qid');
                 var val = this.getAttribute('data-value');
+                console.log('Multi click:', qid, val);
                 toggleMulti(qid, val, this);
-            });
+            };
         });
         var nextBtn = currentQuestionEl.querySelector('.intake-next');
+        console.log('Multi: found nextBtn:', nextBtn);
         if (nextBtn) {
-            nextBtn.addEventListener('click', nextQuestion);
+            nextBtn.onclick = function() {
+                console.log('Next button clicked!');
+                nextQuestion();
+            };
         }
     } else if (q.type === 'photo') {
         var photoArea = currentQuestionEl.querySelector('.photo-upload-area');
         var photoInput = currentQuestionEl.querySelector('input[type="file"]');
+        console.log('Photo: area=', photoArea, 'input=', photoInput);
         if (photoArea && photoInput) {
-            photoArea.addEventListener('click', function(e) {
+            photoArea.onclick = function(e) {
                 if (e.target.tagName !== 'INPUT') {
                     photoInput.click();
                 }
-            });
-            photoInput.addEventListener('change', handleIntakePhoto);
+            };
+            photoInput.onchange = handleIntakePhoto;
         }
         var photoNextBtn = currentQuestionEl.querySelector('.intake-next');
         if (photoNextBtn) {
-            photoNextBtn.addEventListener('click', nextQuestion);
+            photoNextBtn.onclick = function() {
+                console.log('Photo next clicked!');
+                nextQuestion();
+            };
         }
     } else if (q.type === 'text') {
         var textNextBtn = currentQuestionEl.querySelector('.intake-next');
         if (textNextBtn) {
-            textNextBtn.addEventListener('click', function() {
+            textNextBtn.onclick = function() {
                 var textInput = currentQuestionEl.querySelector('textarea');
                 if (textInput) {
                     intakeData[q.id] = textInput.value;
                 }
+                console.log('Text next clicked!');
                 nextQuestion();
-            });
+            };
         }
     }
 }
