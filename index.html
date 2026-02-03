@@ -89,7 +89,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 <div class="panel" id="settingsPanel">
 <div class="settings-row">
 <label>API Key:</label>
-<input type="password" id="apiKeyInput" value="" placeholder="Voer je Gemini API key in">
+<input type="password" id="apiKeyInput" placeholder="Voer je Gemini API key in">
 <button class="settings-btn" id="saveKeyBtn">Activeren</button>
 </div>
 </div>
@@ -266,19 +266,28 @@ function checkApiKey() {
     var s = document.getElementById('apiStatus');
     var setupPrompt = document.getElementById('setupPrompt');
     var readyPrompt = document.getElementById('readyPrompt');
+    var apiKeyInput = document.getElementById('apiKeyInput');
+    var settingsPanel = document.getElementById('settingsPanel');
+
+    // Load saved key into input field (masked)
+    if (API_KEY && apiKeyInput) {
+        apiKeyInput.value = API_KEY;
+    }
 
     if (API_KEY) {
         s.textContent = 'Verbonden';
         s.className = 'api-status connected';
         if (setupPrompt) setupPrompt.style.display = 'none';
         if (readyPrompt) readyPrompt.style.display = 'block';
+        // Close settings panel if API key exists
+        settingsPanel.classList.remove('active');
     } else {
         s.textContent = 'Niet verbonden';
         s.className = 'api-status disconnected';
         if (setupPrompt) setupPrompt.style.display = 'block';
         if (readyPrompt) readyPrompt.style.display = 'none';
         // Open settings panel automatically if no API key
-        document.getElementById('settingsPanel').classList.add('active');
+        settingsPanel.classList.add('active');
     }
 }
 
