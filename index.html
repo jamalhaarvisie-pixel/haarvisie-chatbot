@@ -1075,7 +1075,7 @@ function showQuestion(index) {
             </div>
             <div class="card-actions">
                 ${index > 0 ? '<button class="btn btn-back">← Terug</button>' : ''}
-                <button class="btn btn-next">${q.optional ? 'Overslaan →' : 'Volgende →'}</button>
+                <button class="btn btn-next">${photoData ? 'Volgende →' : (q.optional ? 'Overslaan →' : 'Volgende →')}</button>
             </div>
         `;
     }
